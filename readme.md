@@ -1,4 +1,4 @@
-# CleanCore v1.3
+# CleanCore
 
 ![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
 ![CustomTkinter](https://img.shields.io/badge/customtkinter-5.0+-green.svg)
