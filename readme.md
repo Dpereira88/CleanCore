@@ -61,7 +61,7 @@ line_number; "partial_string"; "prefix_to_remove"; "suffix_to_remove"
 
 **Example:**
 ```
-4; "0203."; ""; ""
+4; "0203."; " "
 15; "token"; "pre_"; "_end"
 ```
 
@@ -281,7 +281,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **@Nao_funciona_**
 - Created: November 2025
-- Version: 1.3
 
 ---
 
