@@ -80,31 +80,69 @@ def detect_system_theme():
 
 
 def dark_messagebox(title, message):
-    theme = detect_system_theme()
-    try:
-        is_maximized = app.winfo_width() >= app.winfo_screenwidth() or app.winfo_height() >= app.winfo_screenheight()
-    except:
-        is_maximized = False
+    """Auto-sizing messagebox — perfectly centered + adapts to text length"""
+    app.update_idletasks()
 
-    popup = ctk.CTkToplevel()
+    theme = detect_system_theme()
+    is_maximized = (app.winfo_width() >= app.winfo_screenwidth() or
+                    app.winfo_height() >= app.winfo_screenheight())
+
+    popup = ctk.CTkToplevel(app)
     popup.title(title)
-    popup.geometry("800x300" if is_maximized else "540x220")
-    bg = "#1e1e1e" if theme == "dark" else "#f0f0f0"
-    fg = "#ffffff" if theme == "dark" else "#000000"
-    popup.configure(fg_color=bg)
+    popup.configure(fg_color="#1e1e1e" if theme == "dark" else "#f8f8f8")
     popup.resizable(False, False)
     popup.transient(app)
     popup.grab_set()
-    popup.lift()
 
+    # === AUTO-SIZE BASED ON TEXT ===
+    lines = message.split('\n')
+    longest_line = max(lines, key=len)
+    char_width = 8.5  # average char width in Consolas
+    base_width = max(480, min(len(longest_line) * char_width + 80, 1000))  # 480 → 1000 px
+    line_height = 28
+    height = max(180, min(len(lines) * line_height + 140, 600))
+
+    if is_maximized:
+        base_width = min(base_width + 200, 1200)
+        height = min(height + 100, 700)
+
+    popup.geometry(f"{int(base_width)}x{int(height)}")
     popup.update_idletasks()
-    x = (popup.winfo_screenwidth() // 2) - (popup.winfo_width() // 2)
-    y = (popup.winfo_screenheight() // 2) - (popup.winfo_height() // 2)
-    popup.geometry(f"+{x}+{y}")
 
-    ctk.CTkLabel(popup, text=message, font=("Consolas", 14 if is_maximized else 12),
-                 text_color=fg, wraplength=750 if is_maximized else 500, justify="center").pack(pady=50)
-    ctk.CTkButton(popup, text="OK", width=140, height=40, command=popup.destroy).pack(pady=10)
+    # === PERFECT CENTER ON MAIN WINDOW ===
+    mx = app.winfo_x() + app.winfo_width() // 2
+    my = app.winfo_y() + app.winfo_height() // 2
+    px = mx - popup.winfo_width() // 2
+    py = my - popup.winfo_height() // 2
+
+    px = max(50, min(px, app.winfo_screenwidth() - popup.winfo_width() - 50))
+    py = max(50, min(py, app.winfo_screenheight() - popup.winfo_height() - 50))
+    popup.geometry(f"+{px}+{py}")
+
+    # === CONTENT ===
+    text_color = "#ffffff" if theme == "dark" else "#000000"
+    ctk.CTkLabel(
+        popup,
+        text=message,
+        text_color=text_color,
+        font=("Consolas", 17 if is_maximized else 15),
+        wraplength=base_width - 80,
+        justify="center"
+    ).pack(expand=True, pady=(30, 10))
+
+    ctk.CTkButton(
+        popup,
+        text="OK",
+        width=180,
+        height=46,
+        font=("Arial", 14, "bold"),
+        fg_color="#2d6ced",
+        hover_color="#1f4eb3",
+        command=popup.destroy
+    ).pack(pady=(0, 25))
+
+    popup.lift()
+    popup.focus_force()
     popup.wait_window()
 
 
@@ -194,6 +232,7 @@ class CleanCore(ctk.CTk):
         self.load_user_config()
         self.geometry(f"{self.width}x{self.height}+{self.x}+{self.y}")
 
+
         self.configs = self._load_configs()
         self.current_config = "default"
         self.font_size = self.user_cfg.get("font_size", 11)
@@ -203,7 +242,8 @@ class CleanCore(ctk.CTk):
         self.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def load_user_config(self):
-        default = {"width": 900, "height": 600, "x": 200, "y": 100, "font_size": 11}
+        default = {"width": 1100, "height": 720, "x": 100, "y": 100, "font_size": 12}
+        
         if os.path.exists(USER_SETTINGS_FILE):
             try:
                 with open(USER_SETTINGS_FILE, 'r', encoding='utf-8') as f:
@@ -212,12 +252,48 @@ class CleanCore(ctk.CTk):
                     default.update(user_data)
             except:
                 pass
-        self.width = default["width"]
-        self.height = default["height"]
-        self.x = default["x"]
-        self.y = default["y"]
-        self.font_size = default.get("font_size", 11)
+
+        self.font_size = default.get("font_size", 12)
         self.user_cfg = default
+
+        # === ONLY SET GEOMETRY — NO POPUPS YET ===
+        # We delay off-screen detection until AFTER mainloop starts
+        self.width = default.get("width", 1100)
+        self.height = default.get("height", 720)
+        self.x = default.get("x", 100)
+        self.y = default.get("y", 100)
+
+        # Just apply — no checks yet
+        self.geometry(f"{self.width}x{self.height}+{self.x}+{self.y}")
+        self.minsize(900, 600)
+        
+        # Schedule off-screen fix AFTER window appears
+        self.after(100, self._fix_if_offscreen)
+
+    def _fix_if_offscreen(self):
+        """Check if window is off-screen and center it — called AFTER mainloop"""
+        try:
+            self.update_idletasks()  # Force geometry update
+            x = self.winfo_x()
+            y = self.winfo_y()
+            w = self.winfo_width()
+            h = self.winfo_height()
+            screen_w = self.winfo_screenwidth()
+            screen_h = self.winfo_screenheight()
+
+            # If window is completely or mostly off-screen
+            if (x + w < 50 or y + h < 50 or x > screen_w - 50 or y > screen_h - 50):
+                # Center on primary monitor
+                new_x = (screen_w - w) // 2
+                new_y = (screen_h - h) // 2
+                self.geometry(f"{w}x{h}+{new_x}+{new_y}")
+                
+                # Show message AFTER window is visible
+                #self.after(300, lambda: dark_messagebox("CleanCore", 
+                #    "Window was on missing monitor → centered on main screen!"))
+        except:
+            pass  # Never crash
+
 
     def save_user_config(self):
         all_users = {}
