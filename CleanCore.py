@@ -1,6 +1,6 @@
-# CleanCore v1.3 - FINAL LEGENDARY EDITION
-# @Nao_funciona_ • Portugal/Germany • 21 November 2025
-# THE TOOL THE WORLD WAS WAITING FOR
+# CleanCore
+# @Nao_funciona_ • Portugal • 21 November 2025
+
 
 import customtkinter as ctk
 import json
