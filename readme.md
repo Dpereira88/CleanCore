@@ -61,7 +61,7 @@ line_number; "partial_string"; "prefix_to_remove"; "suffix_to_remove"
 
 **Example:**
 ```
-4; "0203."; ""; ""
+4; "0203."; " "
 15; "token"; "pre_"; "_end"
 ```
 
@@ -281,7 +281,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **@Nao_funciona_**
 - Created: November 2025
-- Version: 1.3
 
 ---
 
@@ -318,51 +317,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [ ] Custom color schemes
 - [ ] Search & replace in dump area
 - [ ] Import configs from file
-
----
-
-## 🆕 Latest update (2025-11-23)
-
-- README updated with instructions for creating and activating a Python virtual environment for local development on Windows.
-
-What I added:
-
-- Quick commands to create a venv in the repository root and activate it in PowerShell.
-- A short note to add `.venv/` to `.gitignore` and a recommended VS Code workspace setting to point to the venv interpreter.
-
-How to create and use the virtual environment (PowerShell):
-
-```powershell
-# from the repository root (for example: c:\Users\diogo\Desktop\Git)
-python -m venv .venv
-
-# activate the venv in the current PowerShell session
-.\.venv\Scripts\Activate.ps1
-
-# if activation is blocked by execution policy, run this for the current process
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process; .\.venv\Scripts\Activate.ps1
-
-# when done, deactivate:
-deactivate
-```
-
-Recommended additions (optional):
-
-- Add `.venv/` to your `.gitignore`:
-
-```
-.venv/
-```
-
-- For VS Code, create or update `.vscode/settings.json` to point to the interpreter:
-
-```json
-{
-  "python.defaultInterpreterPath": ".venv\\Scripts\\python.exe"
-}
-```
-
-This makes it easy for the editor to pick up the correct interpreter.
 
 ---
 
