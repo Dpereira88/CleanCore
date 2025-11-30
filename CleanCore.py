@@ -838,12 +838,12 @@ class CleanCore(ctk.CTk):
         counter_label.pack(side="left", padx=30)
         ctk.CTkButton(nav, text="Next ►", width=150, height=42, command=next_slide).pack(side="left", padx=15)
 
-        # Autoplay (7 segundos)
+        # Autoplay (10 segundos)
         def autoplay():
             if win.winfo_exists():
                 next_slide()
-                win.after(7000, autoplay)
-        win.after(7000, autoplay)
+                win.after(10000, autoplay)
+        win.after(10000, autoplay)
 
         # Inicia
         show_current()
