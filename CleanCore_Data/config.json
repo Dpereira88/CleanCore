@@ -1,12 +1,26 @@
 {
   "configs": {
     "default": {
-      "entries": [],
+      "entries": [
+        {
+          "line": 7,
+          "partial": "john.doe@gmail.com",
+          "prefix": "Email:",
+          "suffix": "| Age: 28",
+          "raw": "7; \"john.doe@gmail.com\"; \"Email: \"; \" | Age: 28\""
+        }
+      ],
       "raw_lines": [
         "## === DEFAULT ===",
         "## 23.11.2025 • @Nao_funciona_",
         "",
-        "##\\n"
+        "",
+        "",
+        "7; \"john.doe@gmail.com\"; \"Email: \"; \" | Age: 28\"",
+        "",
+        "",
+        "",
+        ""
       ]
     }
   }

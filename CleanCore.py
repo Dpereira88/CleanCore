@@ -156,7 +156,7 @@ class LineNumberText(ctk.CTkFrame):
         self.base_font = ctk.CTkFont("Consolas", self.font_size)
 
         self.line_numbers = ctk.CTkTextbox(
-            self, width=60, font=self.base_font,
+            self, width=40, font=self.base_font,
             fg_color="#1a1a1a", text_color="#606060", activate_scrollbars=False
         )
         self.line_numbers.grid(row=0, column=0, sticky="nsew")
@@ -222,6 +222,58 @@ class LineNumberText(ctk.CTkFrame):
     def get(self, s, e=None):
         return self.text.get(s) if e is None else self.text.get(s, e)
 
+# ===================================================================
+#  INPUT 
+# ===================================================================
+def clean_input_dialog(title, text, default=""):
+    """Input dialog com o mesmo visual perfeito da dark_messagebox"""
+    app.update_idletasks()
+    theme = detect_system_theme()
+
+    dialog = ctk.CTkToplevel(app)
+    dialog.title(title)
+    dialog.configure(fg_color="#1e1e1e" if theme == "dark" else "#f8f8f8")
+    dialog.resizable(False, False)
+    dialog.transient(app)
+    dialog.grab_set()
+
+    # Tamanho automático conforme texto
+    lines = text.split('\n')
+    longest = max(lines + [title], key=len)
+    width = max(420, min(len(longest) * 9 + 120, 700))
+    height = max(220, min(len(lines) * 35 + 200, 500))
+
+    dialog.geometry(f"{int(width)}x{int(height)}")
+
+    # Centro perfeito na janela principal
+    mx = app.winfo_x() + app.winfo_width() // 2
+    my = app.winfo_y() + app.winfo_height() // 2
+    px = mx - width // 2
+    py = my - height // 2
+    px = max(50, min(px, app.winfo_screenwidth() - width - 50))
+    py = max(50, min(py, app.winfo_screenheight() - height - 50))
+    dialog.geometry(f"+{px}+{py}")
+
+    text_color = "#ffffff" if theme == "dark" else "#000000"
+    ctk.CTkLabel(dialog, text=text, font=("Consolas", 16), text_color=text_color).pack(pady=(30, 10))
+
+    entry = ctk.CTkEntry(dialog, width=340, font=("Consolas", 15), justify="center")
+    entry.pack(pady=10)
+    entry.insert(0, default)
+    entry.focus_force()
+
+    result = [None]
+    def ok():
+        result[0] = entry.get()
+        dialog.destroy()
+
+    ctk.CTkButton(dialog, text="OK", width=180, height=46, font=("Arial", 14, "bold"),
+                  fg_color="#2d6ced", hover_color="#1f4eb3", command=ok).pack(pady=(10, 25))
+
+    dialog.bind("<Return>", lambda e: ok())
+    dialog.protocol("WM_DELETE_WINDOW", dialog.destroy)
+    dialog.wait_window()
+    return result[0]
 
 class CleanCore(ctk.CTk):
     def __init__(self):
@@ -294,8 +346,13 @@ class CleanCore(ctk.CTk):
         except:
             pass  # Never crash
 
-
     def save_user_config(self):
+        # Se estiver maximizado → restaura antes de guardar tamanho real
+        was_maximized = self.wm_attributes("-zoomed") if os.name != "nt" else (self.state() == "zoomed")
+        if was_maximized:
+            self.wm_state('normal')          # Desmaximiza temporariamente
+            self.update_idletasks()          # Garante que o tamanho seja recalculado
+
         all_users = {}
         if os.path.exists(USER_SETTINGS_FILE):
             try:
@@ -303,6 +360,7 @@ class CleanCore(ctk.CTk):
                     all_users = json.load(f)
             except:
                 pass
+
         all_users[self.username] = {
             "width": self.winfo_width(),
             "height": self.winfo_height(),
@@ -312,6 +370,10 @@ class CleanCore(ctk.CTk):
         }
         with open(USER_SETTINGS_FILE, 'w', encoding='utf-8') as f:
             json.dump(all_users, f, indent=2)
+
+        # Volta a maximizar se estava antes
+        if was_maximized:
+            self.wm_state('zoomed')
 
     def on_close(self):
         self.save_user_config()
@@ -346,12 +408,31 @@ class CleanCore(ctk.CTk):
         self.combo = ctk.CTkComboBox(top, values=list(self.configs.keys()), command=self._on_config_change, width=220)
         self.combo.pack(side="left", padx=5)
 
-        ctk.CTkButton(top, text="+", width=40, fg_color="green", hover_color="#006400",
-                     command=self._add_config).pack(side="left", padx=5)
+        # === + ADD BUTTON ===
+        ctk.CTkButton(top, text="+", width=40, fg_color="#0d8e0d", hover_color="#006400",
+                      command=self._add_config).pack(side="left", padx=3)
+
+        # === EDIT (RENAME) BUTTON ===
+        ctk.CTkButton(top, text="Edit", width=40, fg_color="#2d6ced", hover_color="#1f4eb3",
+                      command=self._rename_config).pack(side="left", padx=3)
+
+        # === − DELETE BUTTON ===
+        ctk.CTkButton(top, text="−", width=40, fg_color="#b12929", hover_color="#8b1e1e",
+                      command=self._delete_current_config).pack(side="left", padx=3)
+
+        # === EXECUTE & SAVE BUTTON ===
         ctk.CTkButton(top, text="EXECUTE & SAVE", width=180, fg_color="#1f538d", hover_color="#0f3d6e",
                      font=("Arial", 12, "bold"), command=self._save_and_execute).pack(side="left", padx=10)
+        
+        # === EXTRACT BUTTON ===
         ctk.CTkButton(top, text="EXTRACT", width=150, fg_color="#b0632d", hover_color="#8d4d1f",
                      command=self._extract).pack(side="left", padx=5)
+        
+        # === HELP / VIDEO ===
+        help_btn = ctk.CTkButton(top, text="?", width=20, height=20, corner_radius=10,
+                                 font=("Arial", 12, "bold"), fg_color="#2d6ced", hover_color="#1f4eb3",
+                                 command=self._show_help_images)
+        help_btn.pack(side="right", padx=10, pady=5)
 
         main = ctk.CTkFrame(self)
         main.pack(fill="both", expand=True, padx=10, pady=(0, 10))
@@ -363,30 +444,30 @@ class CleanCore(ctk.CTk):
         left.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
 
         header = ctk.CTkFrame(left, fg_color="transparent")
-        header.pack(fill="x", pady=10, padx=15)
+        header.pack(fill="x", pady=5, padx=(20,10))
         ctk.CTkLabel(header, text="Config Editor", font=("Consolas", 12, "bold")).pack(side="left")
         ctk.CTkButton(header, text="A-", width=30, command=lambda: self._change_font(-1)).pack(side="right", padx=2)
         ctk.CTkButton(header, text="A+", width=30, command=lambda: self._change_font(+1)).pack(side="right")
 
-        ctk.CTkLabel(left, text='line; "partial"; "prefix"; "suffix"   |   ## \\n = blank line', 
+        ctk.CTkLabel(left, text='line; "partial"; "prefix"; "suffix"\n## \\n = blank line', 
                      font=("Consolas", 10), text_color="#888888").pack(pady=(0,5))
 
         self.config_text = ctk.CTkTextbox(left, font=("Consolas", self.font_size), undo=True)
-        self.config_text.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+        self.config_text.pack(fill="both", expand=True, padx=15, pady=(0, 10))
         self.config_text._textbox.tag_configure("error", background="#4d1a1a")
         self.config_text._textbox.bind("<<Modified>>", self._validate_config_syntax)
         self.config_text._textbox.bind("<KeyRelease>", self._validate_config_syntax)
 
         right = ctk.CTkFrame(main)
         right.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
-        ctk.CTkLabel(right, text="DUMP AREA – NO WRAP + H-SCROLL", font=("Arial", 16, "bold")).pack(pady=15)
+        ctk.CTkLabel(right, text="Paste / Edit ", font=("Arial", 16, "bold")).pack(pady=10)
         self.text_area = LineNumberText(right, font_size=self.font_size)
         self.text_area.pack(fill="both", expand=True, padx=15, pady=(0, 15))
 
         random_phrase = random.choice(self.phrases)
         ctk.CTkLabel(self, text=f"Hi {self.username} • {random_phrase}",
                      text_color="#aaaaaa", font=("Consolas", 15, "bold"), justify="center").pack(pady=(0, 2))
-        ctk.CTkLabel(self, text="CleanCore v1.3 © @Nao_funciona_ • Nov 2025",
+        ctk.CTkLabel(self, text="CleanCore © \nMade by: @Nao_funciona_ • Nov 2025",
                      text_color="#888888", font=("Consolas", 13), justify="center").pack(pady=(0, 15))
 
     def _validate_config_syntax(self, event=None):
@@ -435,12 +516,10 @@ class CleanCore(ctk.CTk):
         self.config_text.insert("1.0", text)
 
     def _add_config(self):
-        dialog = ctk.CTkInputDialog(text="Enter new config name:", title="CleanCore – New Config")
-        dialog.geometry("400x200")
-        dialog.configure(fg_color="#1e1e1e")
-        name = dialog.get_input()
+        name = clean_input_dialog("CleanCore – New Config", "Enter new config name:")
         if not name or not name.strip():
-            dark_messagebox("Error", "Name cannot be empty!")
+            if name is not None:  # None = janela fechada com X
+                dark_messagebox("Error", "Name cannot be empty!")
             return
         name = name.strip()
         if name in self.configs:
@@ -464,6 +543,76 @@ class CleanCore(ctk.CTk):
         self.config_text.delete("1.0", "end")
         self.config_text.insert("1.0", "\n".join(self.configs[name]["raw_lines"]))
         dark_messagebox("Success", f"Config '{name}' created!")
+
+    def _rename_config(self):
+        old_name = self.current_config
+        if old_name == "default":
+            dark_messagebox("Nope", '"default" config cannot be renamed')
+            return
+
+        dialog = ctk.CTkInputDialog(text=f"New name for '{old_name}':", title="Rename Config")
+        dialog.geometry("460x200")
+        new_name = dialog.get_input()
+
+        if not new_name or not new_name.strip():
+            return
+        new_name = new_name.strip()
+        if new_name == old_name:
+            return
+        if new_name in self.configs:
+            dark_messagebox("Error", f"Config '{new_name}' already exists!")
+            return
+
+        # Rename
+        self.configs[new_name] = self.configs.pop(old_name)
+        self.current_config = new_name
+        self._save_configs()
+        self._refresh_combo()
+        self.combo.set(new_name)
+        dark_messagebox("Success", f"Config renamed to\n→ '{new_name}'")
+
+    def _delete_current_config(self):
+        name = self.current_config
+        if name == "default" and len(self.configs) == 1:
+            dark_messagebox("Stop!", "You cannot delete the last config!\nA new one will be created.")
+            return
+        if name == "default":
+            dark_messagebox("Nope", '"default" config is protected')
+            return
+
+        # Confirmation
+        popup = ctk.CTkToplevel(self)
+        popup.title("Confirm Delete")
+        popup.geometry("420x220")
+        popup.resizable(False, False)
+        popup.transient(self)
+        popup.grab_set()
+
+        ctk.CTkLabel(popup, text=f"Delete config\n'{name}' ?", font=("Consolas", 18), text_color="#ff5555").pack(pady=30)
+        frame = ctk.CTkFrame(popup)
+        frame.pack(pady=10)
+        ctk.CTkButton(frame, text="YES, DELETE", width=140, fg_color="#b12929", hover_color="#8b1e1e",
+                      command=lambda: [self._confirm_delete(name, popup)]).pack(side="left", padx=10)
+        ctk.CTkButton(frame, text="Cancel", width=100, command=popup.destroy).pack(side="left", padx=10)
+
+    def _confirm_delete(self, name, popup):
+        popup.destroy()
+        del self.configs[name]
+        if not self.configs:  # safety
+            self.configs["default"] = {"entries": [], "raw_lines": []}
+        self._save_configs()
+        self._refresh_combo()
+        first = list(self.configs.keys())[0]
+        self.combo.set(first)
+        self.current_config = first
+        self._on_config_change(first)
+        dark_messagebox("Deleted", f"Config '{name}' removed")
+
+    def _refresh_combo(self):
+        values = list(self.configs.keys())
+        self.combo.configure(values=values)
+        if self.current_config not in values and values:
+            self.current_config = values[0]
 
     def _save_current_config(self, silent=False):
         raw_lines = self.config_text.get("1.0", "end-1c").splitlines()
@@ -588,8 +737,127 @@ class CleanCore(ctk.CTk):
         else:
             dark_messagebox("CleanCore", "No bold text found")
 
+    def _show_help_images(self):
+        win = ctk.CTkToplevel(self)
+        win.title("CleanCore • Tutorial – @Nao_funciona_")
+        win.geometry("1000x650")
+        win.resizable(False, False)
+        win.configure(fg_color="#0f0f0f")
+        win.attributes("-topmost", True)   # Sempre por cima
+        win.lift()
+        win.focus_force()
 
+        # Posição: centrada horizontalmente + 80px do topo da tela
+        self.update_idletasks()
+        x = (win.winfo_screenwidth() - 1000) // 2
+        y = 80
+        win.geometry(f"1000x650+{x}+{y}")
 
+        # Pasta das imagens
+        image_folder = os.path.join(SCRIPT_DIR, "CleanCore_Data", "help")
+        os.makedirs(image_folder, exist_ok=True)
+
+        # Lista e ordena as imagens
+        image_files = [f for f in os.listdir(image_folder) 
+                      if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp'))]
+        image_files.sort(key=lambda x: x.lower())
+
+        # Caso não haja imagens
+        if not image_files:
+            ctk.CTkLabel(win,
+                text="Falta a pasta de ajuda!\n\nCria:\nCleanCore_Data\\help\\\n\ne coloca lá as imagens:\nslide1.png\nslide2.png\nslide3.png\n...",
+                font=("Consolas", 22), text_color="#888888", justify="center"
+            ).pack(expand=True, pady=80)
+            ctk.CTkButton(win, text="Fechar", width=160, height=40, fg_color="#b12929",
+                          command=win.destroy).pack(pady=20)
+            return
+
+        # Importa PIL com tratamento de erro
+        try:
+            from PIL import Image, ImageTk
+        except ImportError:
+            ctk.CTkLabel(win,
+                text="Falta o Pillow!\n\nAbre o terminal e executa:\npip install Pillow",
+                font=("Consolas", 22), text_color="#ff5555", justify="center"
+            ).pack(expand=True, pady=80)
+            ctk.CTkButton(win, text="Fechar", width=160, height=40, fg_color="#b12929",
+                          command=win.destroy).pack(pady=20)
+            return
+
+        # Carrega as imagens
+        images = []
+        for img_file in image_files:
+            path = os.path.join(image_folder, img_file)
+            try:
+                img = Image.open(path).resize((960, 540), Image.Resampling.LANCZOS)
+                images.append(ImageTk.PhotoImage(img))
+            except Exception as e:
+                print(f"[CleanCore Help] Erro ao carregar {img_file}: {e}")
+
+        if not images:
+            ctk.CTkLabel(win, text="Nenhuma imagem válida encontrada\nna pasta help/",
+                         font=("Consolas", 22), text_color="#ff5555").pack(expand=True, pady=80)
+            ctk.CTkButton(win, text="Fechar", width=160, height=40, fg_color="#b12929",
+                          command=win.destroy).pack(pady=20)
+            return
+
+        # Label da imagem
+        label = ctk.CTkLabel(win, text="")
+        label.pack(pady=20)
+
+        # Contador de slide
+        current = ctk.IntVar(value=0)
+
+        def show_current():
+            idx = current.get()
+            label.configure(image=images[idx])
+            counter_label.configure(text=f"{idx + 1} / {len(images)}")
+
+        # LOOP INFINITO → Próximo
+        def next_slide():
+            if current.get() < len(images) - 1:
+                current.set(current.get() + 1)
+            else:
+                current.set(0)           # volta ao primeiro
+            show_current()
+
+        # LOOP INFINITO → Anterior
+        def prev_slide():
+            if current.get() > 0:
+                current.set(current.get() - 1)
+            else:
+                current.set(len(images) - 1)  # vai ao último
+            show_current()
+
+        # Navegação
+        nav = ctk.CTkFrame(win)
+        nav.pack(pady=12)
+
+        ctk.CTkButton(nav, text="◄ Previous", width=150, height=42, command=prev_slide).pack(side="left", padx=15)
+        counter_label = ctk.CTkLabel(nav, text="", font=("Consolas", 18, "bold"), text_color="#00ff88")
+        counter_label.pack(side="left", padx=30)
+        ctk.CTkButton(nav, text="Next ►", width=150, height=42, command=next_slide).pack(side="left", padx=15)
+
+        # Autoplay (7 segundos)
+        def autoplay():
+            if win.winfo_exists():
+                next_slide()
+                win.after(7000, autoplay)
+        win.after(7000, autoplay)
+
+        # Inicia
+        show_current()
+
+        # Teclas de atalho
+        win.bind("<Left>", lambda e: prev_slide())
+        win.bind("<Right>", lambda e: next_slide())
+        win.bind("<Escape>", lambda e: win.destroy())
+
+        # Botão fechar (opcional)
+        ctk.CTkButton(win, text="Fechar Tutorial", width=220, height=40,
+                      fg_color="#b12929", hover_color="#8b1e1e", command=win.destroy).pack(pady=15)        
+        
+        
 if __name__ == "__main__":
     app = CleanCore()
     app.mainloop()
