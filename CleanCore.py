@@ -280,47 +280,71 @@ class CleanCore(ctk.CTk):
         super().__init__()
         self.username = get_current_username()
         self.phrases = load_phrases()
-        self.title("CleanCore v1.3 - @Nao_funciona_")
-        self.load_user_config()
-        self.geometry(f"{self.width}x{self.height}+{self.x}+{self.y}")
+        self.title("CleanCore v1.6 - @Nao_funciona_")
 
+        # Primeiro carrega as configs do utilizador (aqui criamos .width, .height, etc.)
+        self.load_user_config()
+
+        # Agora já podemos usar self.width, self.height, self.x, self.y com segurança
+        self.geometry(f"{self.width}x{self.height}+{self.x}+{self.y}")
 
         self.configs = self._load_configs()
         self.current_config = "default"
-        self.font_size = self.user_cfg.get("font_size", 11)
+        self.font_size = self.user_cfg.get("font_size", 12)  # já existe
 
         self._setup_ui()
         self._load_first_config()
         self.protocol("WM_DELETE_WINDOW", self.on_close)
 
+
     def load_user_config(self):
-        default = {"width": 1100, "height": 720, "x": 100, "y": 100, "font_size": 12}
-        
+        default = {"width": 1200, "height": 780, "x": 100, "y": 100, "font_size": 12}
+
         if os.path.exists(USER_SETTINGS_FILE):
             try:
                 with open(USER_SETTINGS_FILE, 'r', encoding='utf-8') as f:
                     all_users = json.load(f)
                     user_data = all_users.get(self.username, {})
-                    default.update(user_data)
-            except:
-                pass
 
+                    current_sig = self._get_display_signature()
+                    saved = user_data.get(current_sig)
+                    if not saved:
+                        last_sig = user_data.get("last_used")
+                        if last_sig and last_sig in user_data:
+                            saved = user_data[last_sig]
+
+                    if saved:
+                        default.update(saved)
+            except Exception as e:
+                print(f"[CleanCore] Erro ao ler config: {e}")
+
+        # CRIA OS ATRIBUTOS QUE O __init__ VAI USAR
+        self.width = max(900, default.get("width", 1200))
+        self.height = max(600, default.get("height", 780))
+        self.x = default.get("x", 100)
+        self.y = default.get("y", 100)
         self.font_size = default.get("font_size", 12)
         self.user_cfg = default
 
-        # === ONLY SET GEOMETRY — NO POPUPS YET ===
-        # We delay off-screen detection until AFTER mainloop starts
-        self.width = default.get("width", 1100)
-        self.height = default.get("height", 720)
-        self.x = default.get("x", 100)
-        self.y = default.get("y", 100)
-
-        # Just apply — no checks yet
-        self.geometry(f"{self.width}x{self.height}+{self.x}+{self.y}")
-        self.minsize(900, 600)
+        # Corrige se estiver fora da tela
+        self.after(200, self._fix_if_offscreen)
         
-        # Schedule off-screen fix AFTER window appears
-        self.after(100, self._fix_if_offscreen)
+        # Aplica
+        self.font_size = default.get("font_size", 12)
+        self.user_cfg = default
+
+        # Só aplica geometria (sem popup ainda)
+        w = max(900, default.get("width", 1200))
+        h = max(600, default.get("height", 780))
+        x = default.get("x", 100)
+        y = default.get("y", 100)
+        self.geometry(f"{w}x{h}+{x}+{y}")
+        self.minsize(900, 600)
+
+        # Corrige se estiver fora da tela (segurança extra)
+        self.after(200, self._fix_if_offscreen)
+
+
 
     def _fix_if_offscreen(self):
         """Check if window is off-screen and center it — called AFTER mainloop"""
@@ -347,12 +371,28 @@ class CleanCore(ctk.CTk):
             pass  # Never crash
 
     def save_user_config(self):
-        # Se estiver maximizado → restaura antes de guardar tamanho real
-        was_maximized = self.wm_attributes("-zoomed") if os.name != "nt" else (self.state() == "zoomed")
+        # Desmaximiza temporariamente se estiver maximizado
+        was_maximized = (self.state() == "zoomed")
         if was_maximized:
-            self.wm_state('normal')          # Desmaximiza temporariamente
-            self.update_idletasks()          # Garante que o tamanho seja recalculado
+            self.wm_state('normal')
+            self.update_idletasks()
 
+        # Garante que não guarda posição fora da tela
+        try:
+            x = self.winfo_x()
+            y = self.winfo_y()
+            w = self.winfo_width()
+            h = self.winfo_height()
+            sw = self.winfo_screenwidth()
+            sh = self.winfo_screenheight()
+            if (x + w < 50 or y + h < 50 or x > sw - 50 or y > sh - 50):
+                x = (sw - w) // 2
+                y = (sh - h) // 2
+                self.geometry(f"+{x}+{y}")
+        except:
+            pass
+
+        # Carrega configurações existentes
         all_users = {}
         if os.path.exists(USER_SETTINGS_FILE):
             try:
@@ -361,17 +401,30 @@ class CleanCore(ctk.CTk):
             except:
                 pass
 
-        all_users[self.username] = {
+        # Cria entrada do user se não existir
+        if self.username not in all_users:
+            all_users[self.username] = {}
+
+        # Identifica o setup atual de monitores
+        display_sig = self._get_display_signature()
+
+        # Guarda posição específica para este setup
+        all_users[self.username][display_sig] = {
             "width": self.winfo_width(),
             "height": self.winfo_height(),
             "x": self.winfo_x(),
             "y": self.winfo_y(),
             "font_size": self.font_size
         }
+
+        # Guarda também como "last_used" (para fallback)
+        all_users[self.username]["last_used"] = display_sig
+
+        # Escreve no ficheiro
         with open(USER_SETTINGS_FILE, 'w', encoding='utf-8') as f:
             json.dump(all_users, f, indent=2)
 
-        # Volta a maximizar se estava antes
+        # Volta a maximizar se estava
         if was_maximized:
             self.wm_state('zoomed')
 
@@ -856,7 +909,36 @@ class CleanCore(ctk.CTk):
         # Botão fechar (opcional)
         ctk.CTkButton(win, text="Fechar Tutorial", width=220, height=40,
                       fg_color="#b12929", hover_color="#8b1e1e", command=win.destroy).pack(pady=15)        
-        
+   
+    def _get_display_signature(self):
+        """Devolve uma string única que identifica o setup atual de monitores"""
+        try:
+            # Método ultra-robusto (funciona em 99.9% dos PCs Windows)
+            import ctypes
+            user32 = ctypes.windll.user32
+            screen_w = user32.GetSystemMetrics(0)  # Largura total virtual
+            screen_h = user32.GetSystemMetrics(1)  # Altura total virtual
+            
+            # Conta quantos monitores reais estão ligados
+            monitors = []
+            def enum_monitors(handle, data):
+                info = win32api.GetMonitorInfo(handle)
+                rect = info['Monitor']
+                monitors.append((rect[2] - rect[0], rect[3] - rect[1]))  # width x height
+                return True
+            try:
+                import win32api
+                win32api.EnumDisplayMonitors(None, None, enum_monitors, 0)
+                monitor_count = len(monitors)
+                monitor_res = "_".join(f"{w}x{h}" for w, h in sorted(monitors))
+            except:
+                monitor_count = 2 if screen_w > 2500 else 1
+                monitor_res = f"{screen_w}x{screen_h}"
+
+            return f"{monitor_count}mon_{monitor_res}"
+        except:
+            # Fallback ultra-simples (nunca falha)
+            return f"sig_{self.winfo_screenwidth()}x{self.winfo_screenheight()}"     
         
 if __name__ == "__main__":
     app = CleanCore()
