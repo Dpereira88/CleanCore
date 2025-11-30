@@ -1,5 +1,5 @@
 # CleanCore
-# @Nao_funciona_ • Portugal • 21 November 2025
+# @Dpereira88 • Portugal • 21 November 2025
 
 
 import customtkinter as ctk
@@ -280,7 +280,7 @@ class CleanCore(ctk.CTk):
         super().__init__()
         self.username = get_current_username()
         self.phrases = load_phrases()
-        self.title("CleanCore v1.6 - @Nao_funciona_")
+        self.title("CleanCore v1.6 - @Dpereira88")
 
         # Primeiro carrega as configs do utilizador (aqui criamos .width, .height, etc.)
         self.load_user_config()
@@ -520,7 +520,7 @@ class CleanCore(ctk.CTk):
         random_phrase = random.choice(self.phrases)
         ctk.CTkLabel(self, text=f"Hi {self.username} • {random_phrase}",
                      text_color="#aaaaaa", font=("Consolas", 15, "bold"), justify="center").pack(pady=(0, 2))
-        ctk.CTkLabel(self, text="CleanCore © \nMade by: @Nao_funciona_ • Nov 2025",
+        ctk.CTkLabel(self, text="CleanCore © \nMade by: @Dpereira88 • Nov 2025",
                      text_color="#888888", font=("Consolas", 13), justify="center").pack(pady=(0, 15))
 
     def _validate_config_syntax(self, event=None):
@@ -552,7 +552,7 @@ class CleanCore(ctk.CTk):
             text = "\n".join(cfg["raw_lines"])
         else:
             text = f"## === {name.upper()} ===\n"
-            text += f"## {datetime.now().strftime('%d.%m.%Y %H:%M')} • @Nao_funciona_\n\n"
+            text += f"## {datetime.now().strftime('%d.%m.%Y %H:%M')} • @Dpereira88\n\n"
             for e in cfg.get("entries", []):
                 if isinstance(e, str):
                     text += e + "\n"
@@ -792,7 +792,7 @@ class CleanCore(ctk.CTk):
 
     def _show_help_images(self):
         win = ctk.CTkToplevel(self)
-        win.title("CleanCore • Tutorial – @Nao_funciona_")
+        win.title("CleanCore • Tutorial – @Dpereira88")
         win.geometry("1000x650")
         win.resizable(False, False)
         win.configure(fg_color="#0f0f0f")

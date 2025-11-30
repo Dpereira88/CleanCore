@@ -6,7 +6,7 @@
 ![Downloads](https://img.shields.io/github/downloads/Dpereira88/CleanCore/total?color=green)
 
 **The fastest, smartest and cleanest data extractor ever built.**  
-Created by **@Nao_funciona_** • November 2025  
+Created by **@Dpereira88** • November 2025  
 
 ---
 
